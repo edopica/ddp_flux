@@ -312,4 +312,26 @@ function DistributedUtils.synchronize!!(
     return ps
 end
 
+"""
+    resolve_unused_parameters!(backend::AbstractFluxDistributedBackend, gs, model)
+
+Replaces `nothing` gradients in `gs` with zero-filled arrays matching the corresponding 
+parameter in `model`. This prevents DDP deadlocks when conditional branches cause some 
+parameters to be unused on some ranks.
+"""
+function resolve_unused_parameters!(backend::AbstractFluxDistributedBackend, gs, model)
+    return Functors.fmap(gs, model; exclude=x -> x isa AbstractArray) do g, p
+        if p isa AbstractArray
+            if g === nothing
+                # Return a zero array of the same shape, type, and device as the parameter
+                return fill!(similar(p), 0)
+            else
+                return g
+            end
+        else
+            return g
+        end
+    end
+end
+
 end
