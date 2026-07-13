@@ -265,7 +265,14 @@ function __construct_distributed_data_container(
     split_across = total_workers(backend)
     size_per_worker = Int(ceil(total_size / split_across))
 
-    partitions = collect(Iterators.partition(1:total_size, size_per_worker))
+    # Pad the dataset size so that it is evenly divisible by the number of workers
+    total_padded = size_per_worker * split_across
+    indices = collect(1:total_size)
+    if total_padded > total_size
+        append!(indices, 1:(total_padded - total_size))
+    end
+
+    partitions = collect(Iterators.partition(indices, size_per_worker))
     idxs = collect(partitions[local_rank(backend) + 1])
 
     return DistributedDataContainer(data, idxs)
